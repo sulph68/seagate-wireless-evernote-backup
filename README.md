@@ -30,6 +30,8 @@ This would create a set of folders to hold the backup content of evernote and al
 
 A custom script is also copied to allow you to run the backup from the GUI.
 
+**BEFORE YOU BEGIN** You would have to obtain a valid copy of oauth_one.py and oauth_two.py containing the production information of this app (Assuming evernote approves) by emailing me at sulph68 at gmail dot com. Otherwise, you would have to edit these two files to include your own consumer secret and key. You might also need to change the code a little to also handle the sandbox environment.
+
 You then need to complete the authorization to perform a backup from Evernote by pointing your browser to http://yourhostname.local/plugins/evernote/index.py and follow the instructions. If everything went well, you should see the list of your notebooks appear.
 
 For example, http://fuel.local/plugins/evernote/index.py

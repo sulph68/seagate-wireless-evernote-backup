@@ -39,11 +39,11 @@ def parse_query_string(authorize_url):
 ##
 # Create an instance of EvernoteClient using your API
 # key (consumer key and consumer secret)
+# include sandbox=True if operating in sandbox environment
 ##
 client = EvernoteClient(
-            consumer_key = 'sulph68',
-            consumer_secret = '45ca10219801d5a5',
-            sandbox = True
+            consumer_key = '',
+            consumer_secret = ''
         )
 
 ##

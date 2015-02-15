@@ -79,7 +79,8 @@ if auth_token == "":
 
 print "Authenticated..."
 
-client = EvernoteClient(token=auth_token, sandbox=True)
+# include sandbox=True if operating in sandbox environment
+client = EvernoteClient(token=auth_token)
 
 user_store = client.get_user_store()
 
