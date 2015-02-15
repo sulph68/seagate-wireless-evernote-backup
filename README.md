@@ -32,6 +32,8 @@ A custom script is also copied to allow you to run the backup from the GUI.
 
 You then need to complete the authorization to perform a backup from Evernote by pointing your browser to http://yourhostname.local/plugins/evernote/index.py and follow the instructions. If everything went well, you should see the list of your notebooks appear.
 
+For example, http://fuel.local/plugins/evernote/index.py
+
 File Structure
 --------------
 These folders created to STORE the notes
@@ -41,22 +43,22 @@ These folders created to STORE the notes
 
 Every notebook is created as its own folder. 
 
-*Take Note* The script DOES NOT remove any notes from your evernote account! It also does not do any match between Evernote and the local copies. It will only pull down what is available in Evernote and keep a copy locally.
+**Take Note** The script DOES NOT remove any notes from your evernote account! It also does not do any match between Evernote and the local copies. It will only pull down what is available in Evernote and keep a copy locally.
 
 While it is likely to contain everything that's in Evernote, you should do a check if there is anything critical in there.
 
 Running the Notes Backup
 ------------------------
 Telnet into the device and run
-> cd /static/Data/1/plugins/evernote
-> ./run_evernote_sync.sh
+> * cd /static/Data/1/plugins/evernote
+> * ./run_evernote_sync.sh
 
 OR
 
 Go to the Settings page in your GUI
-> Click on Services
-> Scroll to Custom Scripts
-> Click on "Run"
+> * Click on Services
+> * Scroll to Custom Scripts
+> * Click on "Run"
 
 A copy of the log is available at /plugins/evernote-sync.log
 
