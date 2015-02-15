@@ -62,3 +62,14 @@ Go to the Settings page in your GUI
 
 A copy of the log is available at /plugins/evernote-sync.log
 
+Cleanup or Re-sync
+------------------
+To cleanup all the backups, simply delete the folders
+* files
+* cache
+* contentHash
+
+Delete the following file
+* authToken
+
+Re-run setup.sh as stated above and revisit index.py to re-authorize the account you want to download from.

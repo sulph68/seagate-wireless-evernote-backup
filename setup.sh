@@ -35,9 +35,11 @@ if [ ! -e "$SCRIPTS_DIR" ]; then
   mkdir "$SCRIPTS_DIR"
 fi
 
-
 echo "Directories are ready."
 echo "Browse to http://$HOSTNAME.local/plugins/$PLUGIN_NAME/index.py to configure"
+
+echo "Linking into Data Directory"
+ln -s "$PLUGIN_FILE_DIR" "/static/Data/1/Data/evernote"
 
 echo "Copying custom run script integration"
 cp "$PLUGIN_DIR/run_evernote_sync.sh" "$SCRIPTS_DIR/scripts/run_evernote_sync.sh"
