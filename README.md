@@ -23,8 +23,8 @@ If you are copying over FTP, the files should be located in
 > /static/Data/1/plugins/evernote
 
 Once done, you should boot up your drive (if not already booted) and telnet into it. Run the following.
-> cd /static/Data/1/plugins/evernote
-> ./setup.sh
+> * cd /static/Data/1/plugins/evernote
+> * ./setup.sh
 
 This would create a set of folders to hold the backup content of evernote and also create a *evernote* folder within your *Data* directory. This would allow you to browse to the folder within the GUI.
 
