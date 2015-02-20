@@ -77,12 +77,15 @@ if auth_token == "":
     print "Please authenticate before use."
     exit(1)
 
+client = EvernoteClient(token=auth_token, sandbox=False)
+
 print "Authenticated..."
-
-# include sandbox=True if operating in sandbox environment
-client = EvernoteClient(token=auth_token)
-
+note_store = client.get_note_store()
 user_store = client.get_user_store()
+
+# user = user_store.getUser()
+# print "User: ", user.username
+# print "NoteStore URL: ", user_store.getNoteStoreUrl()
 
 version_ok = user_store.checkVersion(
     "Evernote EDAMTest (Python)",
@@ -94,12 +97,6 @@ if not version_ok:
     print "Evernote client out of date."
     print ""
     exit(1)
-
-# user = user_store.getUser()
-# print "User: ", user.username
-# print "NoteStore URL: ", user_store.getNoteStoreUrl()
-
-note_store = client.get_note_store()
 
 # List all of the notebooks in the user's account
 notebooks = note_store.listNotebooks()
