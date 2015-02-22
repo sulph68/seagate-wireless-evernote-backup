@@ -30,7 +30,7 @@ plugin_file_path = plugin_path + "/files"
 plugin_cache_path = plugin_path + "/cache"
 plugin_contentHash_path = plugin_path + "/contentHash"
 
-rate_limit = 5
+rate_limit = 10
 
 def checkAuthToken():
 	# print "Checking auth token"
@@ -76,9 +76,9 @@ def compareContentHash(guid, hash):
 auth_token = checkAuthToken()
 # print "Got token: ", auth_token
 if auth_token == "":
-    print "Application authentication token not found."
-    print "Please authenticate before use."
-    exit(1)
+	print "Application authentication token not found."
+	print "Please authenticate before use."
+	exit(1)
 
 client = EvernoteClient(token=auth_token, sandbox=False)
 
@@ -88,7 +88,7 @@ try:
 	note_store = client.get_note_store()
 	syncState = note_store.getSyncState()
 except Errors.EDAMSystemException, e:
-    if e.errorCode == Errors.EDAMErrorCode.RATE_LIMIT_REACHED:
+	if e.errorCode == Errors.EDAMErrorCode.RATE_LIMIT_REACHED:
 		print "Rate limit reached"
 		print "Retry your request in %d seconds" % e.rateLimitDuration
 		exit(1)
@@ -100,54 +100,79 @@ user_store = client.get_user_store()
 # print "NoteStore URL: ", user_store.getNoteStoreUrl()
 
 version_ok = user_store.checkVersion(
-    "Evernote EDAMTest (Python)",
-    UserStoreConstants.EDAM_VERSION_MAJOR,
-    UserStoreConstants.EDAM_VERSION_MINOR
+	"Evernote EDAMTest (Python)",
+	UserStoreConstants.EDAM_VERSION_MAJOR,
+	UserStoreConstants.EDAM_VERSION_MINOR
 )
 
 if not version_ok:
-    print "Evernote client out of date."
-    print ""
-    exit(1)
+	print "Evernote client out of date."
+	print ""
+	exit(1)
 
 # List all of the notebooks in the user's account
 notebooks = note_store.listNotebooks()
 
 print "Found ", len(notebooks), " notebooks:"
 for notebook in notebooks:
-    # we replace all "/" with "|" to prevent filesystem errors
-    notebook_name = notebook.name.replace("/", "|")
-    print "  * ", notebook_name
+	# we replace all "/" with "|" to prevent filesystem errors
+	notebook_name = notebook.name.replace("/", "|")
+	print "  * ", notebook_name
     
-    # slight delay to prevent rate limitation issues
-    time.sleep(rate_limit)
+	# slight delay to prevent rate limitation issues
+	time.sleep(rate_limit)
     
-    # Create mapping cache path and file path
-    notebook_cache_path = plugin_cache_path + "/" + notebook.guid
-    notebook_file_path = plugin_file_path + "/" + notebook_name
-    if not(os.path.exists(notebook_cache_path)):
-	os.mkdir(notebook_cache_path)
-    if not(os.path.exists(notebook_file_path)):  
-        os.mkdir(notebook_file_path) 
+	# Create mapping cache path and file path
+	notebook_cache_path = plugin_cache_path + "/" + notebook.guid
+	notebook_file_path = plugin_file_path + "/" + notebook_name
+	if not(os.path.exists(notebook_cache_path)):
+		os.mkdir(notebook_cache_path)
+	if not(os.path.exists(notebook_file_path)):  
+		os.mkdir(notebook_file_path) 
 
-    # Get relavent filter and get number of notes
-    filter = NoteStore.NoteFilter(notebookGuid=notebook.guid)
-    # print "Auth token: " + auth_token
-    note_counts = note_store.findNoteCounts(auth_token, filter, False)
-    print "   - ", note_counts.notebookCounts[notebook.guid], " notes"
+	# Get relavent filter and get number of notes
+	filter = NoteStore.NoteFilter(notebookGuid=notebook.guid)
+	# print "Auth token: " + auth_token
+    
+	# do a loop if rate limit is reached. automatically sleep for duration and retry
+	rate_test = 0
+	while (rate_test == 0): 
+		try:
+			note_counts = note_store.findNoteCounts(auth_token, filter, False)
+			print "   - ", note_counts.notebookCounts[notebook.guid], " notes"
+			# Fetch all notes within the notebooks
+			result_spec = NoteStore.NotesMetadataResultSpec(includeTitle=True)
+			note_list = note_store.findNotesMetadata(auth_token, filter, 0, 10000, result_spec)    
+			rate_test = 1
+		except Errors.EDAMSystemException, e:
+			rate_test = 0
+			if e.errorCode == Errors.EDAMErrorCode.RATE_LIMIT_REACHED:
+				print "Rate limit reached"
+				print "Retring your request in %d seconds" % e.rateLimitDuration
+				time.sleep(e.rateLimitDuration)
 
-    # Fetch all notes within the notebooks
-    result_spec = NoteStore.NotesMetadataResultSpec(includeTitle=True)
-    note_list = note_store.findNotesMetadata(auth_token, filter, 0, 10000, result_spec)
-    for note in note_list.notes:
-    	# we replace all "/" with "|" to prevent filesystem errors
-    	note_title = note.title.replace("/","|")
-        print "    > ", note_title, "(", note.guid, ")"
+	# Iteration within note
+	for note in note_list.notes:
+		# we replace all "/" with "|" to prevent filesystem errors
+		note_title = note.title.replace("/","|")
+		print "    > ", note_title, "(", note.guid, ")"
         
-        # slight delay to prevent rate limitation issues
-        time.sleep(rate_limit)
+	# slight delay to prevent rate limitation issues
+	time.sleep(rate_limit)
         
-	note_detail = note_store.getNote(auth_token, note.guid, True, False, False, False)
+	
+	# do a loop if rate limit is reached. automatically sleep for duration and retry
+	rate_test = 0
+	while (rate_test == 0): 
+		try:
+			note_detail = note_store.getNote(auth_token, note.guid, True, False, False, False)   
+			rate_test = 1
+		except Errors.EDAMSystemException, e:
+			rate_test = 0
+			if e.errorCode == Errors.EDAMErrorCode.RATE_LIMIT_REACHED:
+				print "Rate limit reached"
+				print "Retring your request in %d seconds" % e.rateLimitDuration
+				time.sleep(e.rateLimitDuration)
 	# print note_detail
 
 	# Compare contentHash file
@@ -155,9 +180,20 @@ for notebook in notebooks:
 		continue
 
 	# Content changed. Fetch everything
-	note_detail = note_store.getNote(auth_token, note.guid, True, True, True, True)
+	# do a loop if rate limit is reached. automatically sleep for duration and retry
+	rate_test = 0
+	while (rate_test == 0): 
+		try:
+			note_detail = note_store.getNote(auth_token, note.guid, True, True, True, True) 
+			rate_test = 1
+		except Errors.EDAMSystemException, e:
+			rate_test = 0
+			if e.errorCode == Errors.EDAMErrorCode.RATE_LIMIT_REACHED:
+				print "Rate limit reached"
+				print "Retring your request in %d seconds" % e.rateLimitDuration
+				time.sleep(e.rateLimitDuration)	
+	
 	print "    -> Updating Note"
-
 	# Write ENML file and link
 	filename = notebook_cache_path + "/" +  note.guid + ".enml"
 	file = open(filename, "w")
@@ -166,7 +202,7 @@ for notebook in notebooks:
 	linkname = notebook_file_path + "/" + note_title + ".enml"
 	if os.path.exists(linkname):                                                         
 		os.remove(linkname)                                                          
-		os.symlink(filename, linkname) 
+	os.symlink(filename, linkname) 
 
 	# Convert ENML to HTML so its viewable on the web
 	note_html = enml.ENMLToHTML(note_detail.content)
@@ -178,7 +214,7 @@ for notebook in notebooks:
 	
 	if os.path.exists(linkname):
 		os.remove(linkname)		
-		os.symlink(filename, linkname)
+	os.symlink(filename, linkname)
 
 	# Update contentHash file
 	writeContentHash(note.guid, note_detail.contentHash)	
@@ -209,7 +245,7 @@ for notebook in notebooks:
 			linkname = notebook_file_path + "/" + note_title + "-" + resource_filename
 			if os.path.exists(linkname):
 				os.remove(linkname)		
-				os.symlink(resource_name, linkname)
+			os.symlink(resource_name, linkname)
 			print "     -> ", resource_filename, " (Updated)"
 
 			# Update contentHash of resource
