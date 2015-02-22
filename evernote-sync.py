@@ -5,6 +5,7 @@ sys.path.append("/static/Data/1/plugins/evernote/lib")
 import os
 import shutil
 import re
+import time
 
 import hashlib
 import binascii
@@ -28,6 +29,8 @@ plugin_path = plugin_dir + "/" + plugin_name
 plugin_file_path = plugin_path + "/files"
 plugin_cache_path = plugin_path + "/cache"
 plugin_contentHash_path = plugin_path + "/contentHash"
+
+rate_limit = 5
 
 def checkAuthToken():
 	# print "Checking auth token"
@@ -80,7 +83,16 @@ if auth_token == "":
 client = EvernoteClient(token=auth_token, sandbox=False)
 
 print "Authenticated..."
-note_store = client.get_note_store()
+
+try:
+	note_store = client.get_note_store()
+	syncState = note_store.getSyncState()
+except Errors.EDAMSystemException, e:
+    if e.errorCode == Errors.EDAMErrorCode.RATE_LIMIT_REACHED:
+		print "Rate limit reached"
+		print "Retry your request in %d seconds" % e.rateLimitDuration
+		exit(1)
+        
 user_store = client.get_user_store()
 
 # user = user_store.getUser()
@@ -103,11 +115,16 @@ notebooks = note_store.listNotebooks()
 
 print "Found ", len(notebooks), " notebooks:"
 for notebook in notebooks:
-    print "  * ", notebook.name
+    # we replace all "/" with "|" to prevent filesystem errors
+    notebook_name = notebook.name.replace("/", "|")
+    print "  * ", notebook_name
+    
+    # slight delay to prevent rate limitation issues
+    time.sleep(rate_limit)
     
     # Create mapping cache path and file path
     notebook_cache_path = plugin_cache_path + "/" + notebook.guid
-    notebook_file_path = plugin_file_path + "/" + notebook.name
+    notebook_file_path = plugin_file_path + "/" + notebook_name
     if not(os.path.exists(notebook_cache_path)):
 	os.mkdir(notebook_cache_path)
     if not(os.path.exists(notebook_file_path)):  
@@ -121,9 +138,15 @@ for notebook in notebooks:
 
     # Fetch all notes within the notebooks
     result_spec = NoteStore.NotesMetadataResultSpec(includeTitle=True)
-    note_list = note_store.findNotesMetadata(auth_token, filter, 0, 10, result_spec)
+    note_list = note_store.findNotesMetadata(auth_token, filter, 0, 10000, result_spec)
     for note in note_list.notes:
-        print "    > ", note.title, "(", note.guid, ")"
+    	# we replace all "/" with "|" to prevent filesystem errors
+    	note_title = note.title.replace("/","|")
+        print "    > ", note_title, "(", note.guid, ")"
+        
+        # slight delay to prevent rate limitation issues
+        time.sleep(rate_limit)
+        
 	note_detail = note_store.getNote(auth_token, note.guid, True, False, False, False)
 	# print note_detail
 
@@ -137,24 +160,25 @@ for notebook in notebooks:
 
 	# Write ENML file and link
 	filename = notebook_cache_path + "/" +  note.guid + ".enml"
-        file = open(filename, "w")
-        file.write(note_detail.content)             
-        file.close()                                            
-        linkname = notebook_file_path + "/" + note.title + ".enml"
-        if os.path.exists(linkname):                                                         
-                os.remove(linkname)                                                          
-        os.symlink(filename, linkname) 
+	file = open(filename, "w")
+	file.write(note_detail.content)             
+	file.close()                                            
+	linkname = notebook_file_path + "/" + note_title + ".enml"
+	if os.path.exists(linkname):                                                         
+		os.remove(linkname)                                                          
+		os.symlink(filename, linkname) 
 
 	# Convert ENML to HTML so its viewable on the web
 	note_html = enml.ENMLToHTML(note_detail.content)
-        filename = notebook_cache_path + "/" +  note.guid + ".html"
-        file = open(filename, "w")
-        file.write(note_html)
-        file.close()
-	linkname = notebook_file_path + "/" + note.title + ".html"
-   	if os.path.exists(linkname):
+	filename = notebook_cache_path + "/" +  note.guid + ".html"
+	file = open(filename, "w")
+	file.write(note_html)
+	file.close()
+	linkname = notebook_file_path + "/" + note_title + ".html"
+	
+	if os.path.exists(linkname):
 		os.remove(linkname)		
-	os.symlink(filename, linkname)
+		os.symlink(filename, linkname)
 
 	# Update contentHash file
 	writeContentHash(note.guid, note_detail.contentHash)	
@@ -162,25 +186,30 @@ for notebook in notebooks:
 	# Get all resources of the note and save as file separately
 	if note_detail.resources:
 		for res in note_detail.resources:
+			# slight delay to prevent rate limitation issues
+			time.sleep(rate_limit)
 			# check to see if file has changed through Hash
 			if compareContentHash(res.guid, res.data.bodyHash):
 				continue
 			# print res.mime
 			e = re.search("^\w+/(.+)$",res.mime)
 			ext = e.group(1)
+				
 			if res.attributes.fileName:
-				resource_filename = res.attributes.fileName
+				# we replace all "/" with "|" to prevent filesystem errors
+				resource_filename = res.attributes.fileName.replace("/","|")
 			else:
 				resource_filename = res.guid + "." + ext
+					
 			# Always base caches on the GUID
 			resource_name = notebook_cache_path + "/" + res.guid + "." + ext
-		        file = open(resource_name, "w")
+			file = open(resource_name, "w")
 			file.write(res.data.body)
 			file.close()
-			linkname = notebook_file_path + "/" + note.title + "-" + resource_filename
-		   	if os.path.exists(linkname):
+			linkname = notebook_file_path + "/" + note_title + "-" + resource_filename
+			if os.path.exists(linkname):
 				os.remove(linkname)		
-			os.symlink(resource_name, linkname)
+				os.symlink(resource_name, linkname)
 			print "     -> ", resource_filename, " (Updated)"
 
 			# Update contentHash of resource
