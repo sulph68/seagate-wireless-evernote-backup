@@ -35,7 +35,7 @@ plugin_contentHash_path = plugin_path + "/contentHash"
 config_file = plugin_path + "/config.cfg"
 
 # throttle delay between query
-rate_limit = 2
+rate_limit = 5
 # force refresh all content if 1, normally should be 0
 refresh_all = 0
 # sync only this notebook. if empty, ("") will sync all
@@ -94,11 +94,11 @@ def ReadCheckpoint(notebook):
 		file.close()
 	config.read(config_file)
 	try:
-		count = config.get("Checkpoint", notebook)
+		count = config.get("Checkpoint", notebook.replace(":","%3A"))
 		print "   * Checkpoint found! Starting from ", count
 	except:
 		print "   * No checkpoint found! Starting from 0"
-		WriteCheckpoint(notebook, 0)
+		WriteCheckpoint(notebook.replace(":","%3A"), 0)
 		count = 0
 	return int(count)
 
@@ -106,11 +106,11 @@ def WriteCheckpoint(notebook, count):
 	config = ConfigParser.ConfigParser()
 	config.read(config_file)
 	for name,value in config.items("Checkpoint"):
-		if name == notebook:
+		if name == notebook.replace(":","%3A"):
 			continue
 		else:
 			config.set("Checkpoint", name, value)
-	config.set("Checkpoint", notebook, count)
+	config.set("Checkpoint", notebook.replace(":","%3A"), count)
 	file = open(config_file,"w")
 	config.write(file)
 	file.close()
