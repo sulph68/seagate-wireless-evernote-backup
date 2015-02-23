@@ -6,6 +6,7 @@ import os
 import shutil
 import re
 import time
+import ConfigParser
 
 import hashlib
 import binascii
@@ -30,12 +31,15 @@ plugin_file_path = plugin_path + "/files"
 plugin_cache_path = plugin_path + "/cache"
 plugin_contentHash_path = plugin_path + "/contentHash"
 
+# configuration file to store values between runs
+config_file = plugin_path + "/config.cfg"
+
 # throttle delay between query
-rate_limit = 7
+rate_limit = 2
 # force refresh all content if 1, normally should be 0
 refresh_all = 0
 # sync only this notebook. if empty, ("") will sync all
-sync_notebook = "Business Cards"
+sync_notebook = ""
 
 def checkAuthToken():
 	# print "Checking auth token"
@@ -79,7 +83,38 @@ def compareContentHash(guid, hash):
 		# print "Content changed"
 		return False
 
+# Configuration file handlers
+def ReadCheckpoint(notebook):
+	config = ConfigParser.ConfigParser()
+	# if config file doesn't exist, create it
+	if not os.path.exists(config_file):
+		file = open(config_file, "w")
+		config.add_section("Checkpoint")
+		config.write(file)
+		file.close()
+	config.read(config_file)
+	try:
+		count = config.get("Checkpoint", notebook)
+		print "   * Checkpoint found! Starting from ", count
+	except:
+		print "   * No checkpoint found! Starting from 0"
+		WriteCheckpoint(notebook, 0)
+		count = 0
+	return int(count)
 
+def WriteCheckpoint(notebook, count):
+	config = ConfigParser.ConfigParser()
+	config.read(config_file)
+	for name,value in config.items("Checkpoint"):
+		if name == notebook:
+			continue
+		else:
+			config.set("Checkpoint", name, value)
+	config.set("Checkpoint", notebook, count)
+	file = open(config_file,"w")
+	config.write(file)
+	file.close()
+	
 # Main
 auth_token = checkAuthToken()
 # print "Got token: ", auth_token
@@ -90,18 +125,25 @@ if auth_token == "":
 
 client = EvernoteClient(token=auth_token, sandbox=False)
 
+now = time.strftime("%c")
 print "Authenticated..."
 
-try:
-	note_store = client.get_note_store()
-	syncState = note_store.getSyncState()
-except Errors.EDAMSystemException, e:
-	if e.errorCode == Errors.EDAMErrorCode.RATE_LIMIT_REACHED:
-		print "Rate limit reached"
-		print "Retry your request in %d seconds" % e.rateLimitDuration
-		exit(1)
-		
-user_store = client.get_user_store()
+# do a loop if rate limit is reached. automatically sleep for duration and retry
+rate_test = 0
+while (rate_test == 0): 
+	try:
+		note_store = client.get_note_store()
+		syncState = note_store.getSyncState()
+		user_store = client.get_user_store()
+		rate_test = 1
+	except Errors.EDAMSystemException, e:
+		rate_test = 0
+		if e.errorCode == Errors.EDAMErrorCode.RATE_LIMIT_REACHED:
+			print "**", time.strftime("%c")
+			print "** Rate limit reached"
+			print "** Retrying your request in %d seconds" % e.rateLimitDuration
+			time.sleep(e.rateLimitDuration)
+			
 
 # user = user_store.getUser()
 # print "User: ", user.username
@@ -154,7 +196,8 @@ for notebook in notebooks:
 	# print "Auth token: " + auth_token
 	
 	# iterative loop to get all notes starts here
-	complete_notes = 0
+	# Retrieve checkpoint of notebook
+	complete_notes = ReadCheckpoint(notebook_name)
 	notebook_complete = 0
 	
 	while (notebook_complete == 0):
@@ -175,16 +218,22 @@ for notebook in notebooks:
 			except Errors.EDAMSystemException, e:
 				rate_test = 0
 				if e.errorCode == Errors.EDAMErrorCode.RATE_LIMIT_REACHED:
+					print "**", time.strftime("%c")
 					print "** Rate limit reached"
 					print "** Retrying your request in %d seconds" % e.rateLimitDuration
 					time.sleep(e.rateLimitDuration)
 				
 		# Iteration within note
+		count_index = 0
 		for note in note_list.notes:
 			# we replace all "/" with "|" to prevent filesystem errors
 			note_title = note.title.replace("/","|")
-			print "    > ", note_title, "(", note.guid, ")"
-		
+			curr_note = (complete_notes - len(note_list.notes) + count_index)
+			print "   ", curr_note,"> ", note_title, "(", note.guid, ")"
+			
+			# update count of notes in current iteration
+			count_index = count_index + 1
+			
 			# slight delay to prevent rate limitation issues
 			time.sleep(rate_limit)
 		
@@ -197,6 +246,7 @@ for notebook in notebooks:
 				except Errors.EDAMSystemException, e:
 					rate_test = 0
 					if e.errorCode == Errors.EDAMErrorCode.RATE_LIMIT_REACHED:
+						print "**", time.strftime("%c")
 						print "** Rate limit reached"
 						print "** Retrying your request in %d seconds" % e.rateLimitDuration
 						time.sleep(e.rateLimitDuration)
@@ -204,6 +254,12 @@ for notebook in notebooks:
 		
 			# Compare contentHash file
 			if compareContentHash(note.guid, note_detail.contentHash):
+				# Write checkpoint information for recovery if no change
+				# print "notebook name:", notebook_name
+				if curr_note >= (note_list.totalNotes - 1):
+					WriteCheckpoint(notebook_name, 0)
+				else:
+					WriteCheckpoint(notebook_name, curr_note)
 				continue
 			
 			# Content changed. Fetch everything
@@ -216,6 +272,7 @@ for notebook in notebooks:
 				except Errors.EDAMSystemException, e:
 					rate_test = 0
 					if e.errorCode == Errors.EDAMErrorCode.RATE_LIMIT_REACHED:
+						print "**", time.strftime("%c")
 						print "** Rate limit reached"
 						print "** Retrying your request in %d seconds" % e.rateLimitDuration
 						time.sleep(e.rateLimitDuration)	
@@ -277,4 +334,12 @@ for notebook in notebooks:
 				
 					# Update contentHash of resource
 					writeContentHash(res.guid, res.data.bodyHash)
+			
+			# Write checkpoint information for recovery
+			# print "notebook name:", notebook_name
+			if curr_note >= (note_list.totalNotes - 1):
+				WriteCheckpoint(notebook_name, 0)
+			else:
+				WriteCheckpoint(notebook_name, curr_note)
+
 
