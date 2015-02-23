@@ -59,9 +59,9 @@ def writeContentHash(guid, hash):
 	filename = plugin_contentHash_path + "/" + guid
 	if os.path.exists(filename):
 		os.remove(filename)
-		file = open(filename, "w")
-		file.write(binascii.b2a_base64(hash))
-		file.close()
+	file = open(filename, "w")
+	file.write(binascii.b2a_base64(hash))
+	file.close()
 
 # function to compare contentHash file
 def compareContentHash(guid, hash):
