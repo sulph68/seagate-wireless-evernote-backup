@@ -12,6 +12,18 @@ notes.
 
 These scripts has not been tested on anything else.
 
+## Features
+
+Here are some features of this script
+
+* Fetches all notes in Evernote ENML format and converts them into HTML formats (thanks to some python libraries)
+* Fetches all corresponding resources of the notes
+* Stores every note uniquely as Evernote does but links to readable title names. Also for their corresponding resources
+* Ability to sync all notebooks or just one named notebook by setting the sync_notebook variable in the evernote-sync.py script
+* Automatically recover form last known sync point if interrupted via a Checkpoint
+* Able to force a refresh of all notes by setting the refresh_all variable to 1 or 0
+* Delays between each contact to Evernote to handle rate limitations and automatically delay and resumes is the rate limit is hit
+
 ## Requirements
 
 The drive would have to be modded with the improvements from
@@ -127,7 +139,7 @@ account you want to download from.
 ## Disclaimer and license
 This script is provided as is and i would not be held liable if your notes is to go missing. That said, as is, the script does not delete anything from your Evernote store and only downloads. 
 
-I am no lawyer. But i would like to release this under [GPL](http://www.gnu.org/copyleft/gpl.html). A short copy of the license is available in the LICENSE file.
+I am no lawyer. But i would like to release this under [GPL](http://www.gnu.org/copyleft/gpl.html). A short copy of the license is available in the LICENSE file. All rights to libraries i used in this software also belongs to their respective owners. So please respect that. Some codes were based on available sample codes on the internet. Kudos goes to them for without which, this script wouldn't have been possible.
 
 An important note is that you DO NOT share or re-use the registered Evernote Tokens for the sake of all other users and integrity of the intent of this software. If notified, i would be forced to remove them and we would all have to only rely on developer tokens to move forward.
 
