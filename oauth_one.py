@@ -42,8 +42,8 @@ def parse_query_string(authorize_url):
 # include sandbox=True if operating in sandbox environment
 ##
 client = EvernoteClient(
-            consumer_key = '',
-            consumer_secret = ''
+            consumer_key = 'sulph68',
+            consumer_secret = '45ca10219801d5a5'
         )
 
 ##
